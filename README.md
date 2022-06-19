@@ -1,2 +1,2 @@
-# BCS Projects
+# BC Projects
 Repo for projects
