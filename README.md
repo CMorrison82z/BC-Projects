@@ -1,2 +1,2 @@
-# BrightChamps
+# BCS Projects
 Repo for projects
