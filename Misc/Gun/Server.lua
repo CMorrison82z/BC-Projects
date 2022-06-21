@@ -3,12 +3,20 @@ local PhysicsService = game:GetService("PhysicsService")
 
 local Tool = script.Parent
 
-local iFastCast = require(4453855787) -- https://etithespir.it/FastCastAPIDocs/
+local iFastCast = require(game:GetService("ReplicatedStorage").Imported.FastCastRedux)
+
+-- New raycast parameters.
+local CastParams = RaycastParams.new()
+CastParams.IgnoreWater = true
+CastParams.FilterType = Enum.RaycastFilterType.Blacklist
+CastParams.FilterDescendantsInstances = {}
 
 local bulletCaster = iFastCast.new()
 local castBehavior = iFastCast.newBehavior()
 castBehavior.CosmeticBulletContainer = workspace
 castBehavior.CosmeticBulletTemplate = Tool.Bullet:Clone() Tool.Bullet:Destroy()
+castBehavior.RaycastParams = CastParams
+castBehavior.AutoIgnoreContainer = false
 
 local BulletGroup = "Bullets"
 PhysicsService:CreateCollisionGroup(BulletGroup)
@@ -30,22 +38,32 @@ local Sounds = {
 
 local RemoteEvent = Tool.RemoteEvent
 
-local function OnEquipped(player)
+local function OnEquipped()
 	-- Remove collision:
 	for _, v in ipairs(Tool:GetDescendants()) do
-		if not v:IsA("BasePart") then
+		if v == Handle then continue end
+		
+		if v:IsA("BasePart") then
 			v.CanCollide = false
 		end
 	end
 end
 
-local function OnUnEquipped(player)
+local function OnUnequipped()
 	-- Add collision:
-	for _, v in ipairs(Tool:GetDescendants()) do
-		if not v:IsA("BasePart") then
+	for _, v : Instance in ipairs(Tool:GetDescendants()) do
+		if v == Handle then continue end
+
+		if v:IsA("BasePart") then
 			v.CanCollide = true
 		end
 	end
+	
+	Handle.CanTouch = false
+	
+	task.delay(1, function()
+		Handle.CanTouch = true
+	end)
 end
 
 -- Combat Source :
@@ -62,8 +80,8 @@ local function OnActivated(player, mousePoint)
 	Ammo.Value -= 4
 	
 	for i = 1, 4 do
-		bulletCaster:Fire(Muzzle.Position, (mousePoint - Muzzle.Position).Unit, Configuration.BulletSpeed.Value, castBehavior)
-
+		local newCast = bulletCaster:Fire(Muzzle.Position, (mousePoint - Muzzle.Position).Unit, Configuration.BulletSpeed.Value, castBehavior)
+		
 		wait()
 	end
 end
@@ -86,8 +104,6 @@ end
 
 
 local funcMap = {
-	Equipped = OnEquipped,
-	UnEquipped = OnUnEquipped,
 	Activated = OnActivated,
 	Reload = OnReload
 }
@@ -96,7 +112,8 @@ local function EventHandler(player, functionName, ...)
 	funcMap[functionName](player, ...)
 end
 
-
+Tool.Unequipped:Connect(OnUnequipped)
+Tool.Equipped:Connect(OnEquipped)
 RemoteEvent.OnServerEvent:Connect(EventHandler)
 
 
@@ -104,11 +121,9 @@ RemoteEvent.OnServerEvent:Connect(EventHandler)
 
 bulletCaster.RayHit:Connect(function(cast, raycastResult : RaycastResult)
 	local otherPart = raycastResult.Instance
-	
+
 	if otherPart.Name == "Bullet" then return end
 	if otherPart:IsDescendantOf(Tool) then return end
-
-	print(otherPart)
 
 	local humanoid : Humanoid = otherPart.Parent:FindFirstChild("Humanoid")
 
@@ -129,4 +144,12 @@ bulletCaster.LengthChanged:Connect(function(cast, lastPoint, rayDirection, displ
 	local currentPoint = lastPoint + (rayDirection * displacement)
 	
 	cosmeticBullet:PivotTo(CFrame.lookAt(currentPoint, currentPoint + rayDirection))
+end)
+
+bulletCaster.CastTerminating:Connect(function(cast)
+	local cosmeticBullet = cast.RayInfo.CosmeticBulletObject
+	
+	if cosmeticBullet ~= nil then
+		cosmeticBullet:Destroy()
+	end
 end)

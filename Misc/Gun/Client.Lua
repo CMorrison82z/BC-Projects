@@ -1,9 +1,12 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ContextActionService = game:GetService("ContextActionService")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
 local player : Player = game:GetService("Players").LocalPlayer
 
 local mouse = player:GetMouse()
+local Camera = workspace.CurrentCamera
 
 local Tool = script.Parent
 
@@ -14,6 +17,8 @@ local UI = Tool:WaitForChild("UI")
 local AmmoString = "%i / %i"
 
 local RemoteEvent = Tool.RemoteEvent
+
+local currentViewModel;
 
 local function OnEquipped()
 	-- Play animations
@@ -26,10 +31,24 @@ local function OnEquipped()
 	UI.Ammo.Text = AmmoString:format(Tool.Ammo.Value, Configuration.MaxAmmo.Value)
 	
 	UI.Parent = player.PlayerGui
+	
+	player.CameraMode = Enum.CameraMode.LockFirstPerson
+
+	--RunService:BindToRenderStep("GunCamera", 300, function(dt)
+	--	if Camera.CameraType ~= Enum.CameraType.Scriptable then
+	--		Camera.CameraType = Enum.CameraType.Scriptable
+	--	end
+		
+		
+	--end)
 end
 
 local function OnUnequipped()
+	UI.Parent = Tool
 	
+	player.CameraMode = Enum.CameraMode.Classic
+
+	--RunService:UnbindFromRenderStep("GunCamera")
 end
 
 local _tweenDb = false
