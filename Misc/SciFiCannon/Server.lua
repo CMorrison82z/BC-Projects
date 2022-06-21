@@ -4,8 +4,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Tool = script.Parent
 
-local iFastCast = require(ReplicatedStorage.Imported.FastCastRedux)
-
+local iFastCast = require(game:GetService("ReplicatedStorage").Imported.FastCastRedux)
 
 local ProjectilesFolder = workspace:WaitForChild("_projectiles", 5)
 if not ProjectilesFolder then
@@ -20,18 +19,20 @@ CastParams.IgnoreWater = true
 CastParams.FilterType = Enum.RaycastFilterType.Blacklist
 CastParams.FilterDescendantsInstances = {}
 
+local ExplosionParams = OverlapParams.new()
+
 local bulletCaster = iFastCast.new()
 local castBehavior = iFastCast.newBehavior()
 castBehavior.CosmeticBulletContainer = ProjectilesFolder
-castBehavior.CosmeticBulletTemplate = ReplicatedStorage.Projectiles.Bullet
+castBehavior.CosmeticBulletTemplate = ReplicatedStorage.Projectiles.SciCannon
 castBehavior.RaycastParams = CastParams
+castBehavior.Acceleration = Vector3.new(0, - workspace.Gravity / 5, 0)
 castBehavior.AutoIgnoreContainer = true
 
 local BulletGroup = "Bullets"
-if not PhysicsService:GetCollisionGroupId(BulletGroup) then
-	PhysicsService:CreateCollisionGroup(BulletGroup)
-	PhysicsService:CollisionGroupSetCollidable(BulletGroup, BulletGroup, false)
-end
+PhysicsService:CreateCollisionGroup(BulletGroup)
+PhysicsService:CollisionGroupSetCollidable(BulletGroup, BulletGroup, false)
+
 
 local Handle = Tool.Handle
 local Muzzle = Tool.Model.Muzzle
@@ -60,13 +61,9 @@ local function OnActivated(player, mousePoint)
 	
 	Sounds.Fire:Play()
 	
-	Ammo.Value -= 4
+	Ammo.Value -= 1
 	
-	for i = 1, 4 do
-		local newCast = bulletCaster:Fire(Muzzle.Position, (mousePoint - Muzzle.Position).Unit, Configuration.ProjectileSpeed.Value, castBehavior)
-		
-		wait(Configuration.BurstWait.Value)
-	end
+	local newCast = bulletCaster:Fire(Muzzle.Position, (mousePoint - Muzzle.Position).Unit, Configuration.ProjectileSpeed.Value, castBehavior)
 end
 
 local function OnRayHit(cast, raycastResult : RaycastResult)
@@ -74,8 +71,6 @@ local function OnRayHit(cast, raycastResult : RaycastResult)
 
 	if otherPart.Name == "Projectile" then return end
 	if otherPart:IsDescendantOf(Tool) then return end
-
-	local humanoid : Humanoid = otherPart.Parent:FindFirstChild("Humanoid")
 
 	local _sound = Tool.ProjectileHit:Clone()
 	_sound.Parent = otherPart
@@ -85,11 +80,37 @@ local function OnRayHit(cast, raycastResult : RaycastResult)
 		_sound:Destroy()
 	end)
 
-	if not humanoid then return end
-
-	humanoid:TakeDamage(25)
-end
+	local hitPos = raycastResult.Position
 	
+	local explosionPart = Instance.new("Part")
+	explosionPart.Shape = Enum.PartType.Ball
+	explosionPart.Size = Vector3.new(1,1,1)
+	explosionPart.Position = hitPos
+	explosionPart.CanCollide = false
+	explosionPart.Anchored = true
+	explosionPart.Color = Color3.new(0,1,1)
+	explosionPart.Transparency = .25
+	explosionPart.Parent = workspace
+	
+	local explosionTween = TweenService:Create(explosionPart, TweenInfo.new(.25, Enum.EasingStyle.Linear), {
+		Size = Vector3.new(30,30,30),
+		Color = Color3.new(),
+		Transparency = 1
+	})
+	
+	explosionTween.Completed:Connect(function()
+		explosionPart:Destroy()
+	end)
+	
+	explosionTween:Play()
+	
+	local explosion = Instance.new("Explosion")
+	explosion.Position = hitPos
+	explosion.Visible = false
+	explosion.BlastRadius = 10
+	explosion.Parent = workspace
+end
+
 -----------------------------------
 
 local isReloading = false

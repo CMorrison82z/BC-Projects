@@ -70,7 +70,6 @@ local function OnActivated()
 		
 		_tweenDb = false
 	end
-	
 	-- Animations, sounds, etc.
 end
 
